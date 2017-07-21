@@ -1,3 +1,12 @@
+provider "aws" {
+  region = "${var.region}"
+}
+
+terraform {
+  backend "s3" {}
+  required_version = "~> 0.9.2"
+}
+
 # Template file for GETTING instance user data file
 data "template_file" "user-data" {
   template = "${file("./templates/userdata/ignition.json")}"

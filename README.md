@@ -4,7 +4,7 @@
 ### deployment.tf file
 ```hcl
 module "demo" {
-  source                            = "git::ssh://git@github.com/tf-modules/aws-coreos-instance.git?ref=0.0.1"
+  source                            = "git::ssh://git@github.com/tf-modules/aws-coreos-instance.git?//ref=0.0.2"
 
   # instance overrides
   ## base configs
