@@ -1,36 +1,34 @@
-provider "aws" {
-  region = "${var.region}"
-}
+#provider "aws" {
+#  region = "${var.region}"
+#}
 
 terraform {
-  backend "s3" {}
+#  backend "s3" {}
   required_version = "~> 0.9.2"
 }
 
-# Template file for GETTING instance user data file
 data "template_file" "user-data" {
   template = "${file("./templates/userdata/ignition.json")}"
   vars {
-    var_volume_path      = "${var.var_volume_path}"
-    data_volume_path     = "${var.data_volume_path}"
-    site_name            = "${var.site_name}"
-    role                 = "${var.role}"
-    environment          = "${var.environment}"
+    region               = "%{var.region}"
+
+    var_volume_path      = "${var.varfs["path"]}"
+    data_volume_path     = "${var.datafs["path"]}"
+    app_name             = "${var.tags["app_name"]}"
+    role                 = "${var.tags["role"]}"
+    environment          = "${var.tags["environment"]}"
+    customer             = "${var.tags["customer"]}"
+    billing_code         = "${var.tags["billing_code"]}"
     iam_instance_profile = "${var.iam_instance_profile}"
     version              = "${var.version}"
 
     aws_account_id       = "${var.aws_account_id}"
-    ssh_key_name         = "${var.ssh_key_name}"
-    ssh_key              = "${var.ssh_key}"
+    ssh_key_name         = "${var.key_name}"
+    ssh_public_key       = "${var.key_contents}"
     password             = "${var.password}"
-    environment          = "${var.environment}"
-    customer             = "${var.customer}"
-    consortium           = "${var.consortium}"
     dns_domain           = "${var.dns_domain}"
-    role                 = "${var.role}"
-    node_name            = "${format("%s-%s-%s", var.site_name, var.role, var.environment)}"
-    aws_tag_version      = "${var.aws_tag_version}"
-    bucket               = "${var.configuration_bucket}"
+    node_name            = "${format("%s-%s-%s", var.tags["app_name"], var.tags["environment"], var.tags["billing_code"])}"
+    ec2_tag              = "${var.ec2_tag}"
   }
 }
 
@@ -39,36 +37,36 @@ resource "aws_instance" "coreos" {
     ami                         = "${var.ami}"
     instance_type               = "${var.instance_type}"
     iam_instance_profile        = "${var.iam_instance_profile}"
-    key_name                    = "${var.ssh_key_name}"
+    key_name                    = "${var.key_name}"
     associate_public_ip_address = "${var.associate_public_ip}"
     vpc_security_group_ids      = ["${var.vpc_security_group_ids}"]
-    user_data                   = "${data.template_file.user-data.rendered}"
+    user_data                   = "${length(var.override_user_data) > 0 ? var.override_user_data : data.template_file.user-data.rendered}"
     ebs_optimized               = "${var.ebs_optimized}"
     subnet_id                   = "${var.subnet_id}"
 
     # /
     root_block_device {
-      volume_type               = "${var.root_volume_type}"
-      volume_size               = "${var.root_volume_size}"
-      delete_on_termination     = "${var.root_volume_delete_on_termination}"
+      volume_type               = "${var.rootfs["type"]}"
+      volume_size               = "${var.rootfs["size"]}"
+      delete_on_termination     = "${var.rootfs["delete_on_termination"]}"
     }
 
     # docker /var/lib/docker
     ebs_block_device {
-      device_name               = "${var.var_volume_path}"
-      volume_type               = "${var.var_volume_type}"
-      volume_size               = "${var.var_volume_size}"
-      encrypted                 = "${var.var_volume_encrypted}"
-      delete_on_termination     = "${var.var_volume_delete_on_termination}"
+      device_name               = "${var.varfs["path"]}"
+      volume_type               = "${var.varfs["type"]}"
+      volume_size               = "${var.varfs["size"]}"
+      encrypted                 = "${var.varfs["encrypted"]}"
+      delete_on_termination     = "${var.varfs["delete_on_termination"]}"
     }
 
     # docker /mnt
     ebs_block_device {
-      device_name               = "${var.data_volume_path}"
-      volume_type               = "${var.data_volume_type}"
-      volume_size               = "${var.data_volume_size}"
-      encrypted                 = "${var.data_volume_encrypted}"
-      delete_on_termination     = "${var.data_volume_delete_on_termination}"
+      device_name               = "${var.datafs["path"]}"
+      volume_type               = "${var.datafs["type"]}"
+      volume_size               = "${var.datafs["size"]}"
+      encrypted                 = "${var.datafs["encrypted"]}"
+      delete_on_termination     = "${var.datafs["delete_on_termination"]}"
     }
 
     lifecycle {
@@ -79,7 +77,7 @@ resource "aws_instance" "coreos" {
 # resource record set resource
 resource "aws_route53_record" "coreos" {
   depends_on = ["aws_instance.coreos"]
-  name       = "${format("%s-%s.%s", var.site_name, var.role, var.dns_domain)}"
+  name       = "${format("%s-%s-%s.%s", var.tags["app_name"], var.tags["environment"], var.tags["customer"], var.dns_domain)}"
   zone_id    = "${var.r53zone_id}"
   type       = "A"
   ttl        = "30"
