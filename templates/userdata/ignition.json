@@ -1,0 +1,170 @@
+{
+  "ignition": {
+    "version": "2.0.0",
+    "config": {}
+  },
+  "storage": {
+    "disks": [
+      {
+        "device": "${var_volume_path}",
+        "wipeTable": true,
+        "partitions": [
+          {
+            "label": "varlibdocker",
+            "number": 1,
+            "size": 0,
+            "start": 0
+          }
+        ]
+      },
+      {
+        "device": "${data_volume_path}",
+        "wipeTable": true,
+        "partitions": [
+          {
+            "label": "data",
+            "number": 1,
+            "size": 0,
+            "start": 0
+          }
+        ]
+      }
+    ],
+    "filesystems": [
+      {
+        "name": "varlibdocker",
+        "mount": {
+          "device": "${var_volume_path}1",
+          "format": "ext4",
+          "create": {
+            "force": true,
+            "options": [
+              "-L",
+              "VARLIBDOCKER"
+            ]
+          }
+        }
+      },
+      {
+        "name": "data",
+        "mount": {
+          "device": "${data_volume_path}1",
+          "format": "ext4",
+          "create": {
+            "force": true,
+            "options": [
+              "-L",
+              "DATA"
+            ]
+          }
+        }
+      }
+    ],
+    "files": [
+      {
+        "filesystem": "root",
+        "path": "/etc/hostname",
+        "contents": {
+          "source": "data:,${format("%s-%s-%s", app_name, environment, billing_code)}",
+          "verification": {}
+        },
+        "mode": 420,
+        "user": {},
+        "group": {}
+      },
+      {
+        "filesystem": "root",
+        "path": "/etc/envvars",
+        "contents": {
+          "source": "data:,iam_instance_profile%3D${iam_instance_profile}%0Aaws_account_id%3D${aws_account_id}%0Aversion%3D${version}%0Aregion%3D${region}%0Aenvironment%3D${environment}%0Acustomer%3D${customer}%0Abilling_code%3D${billing_code}%0Adns_domain%3D${dns_domain}%0Arole%3D${role}%0Anode_name%3D${format("%s-%s-%s", app_name, environment, billing_code)}%0Aec2_tag%3D${ec2_tag}%0A",
+          "verification": {}
+        },
+        "mode": 420,
+        "user": {},
+        "group": {}
+      },
+      {
+        "filesystem": "root",
+        "path": "/etc/iam_auth",
+        "contents": {
+          "source": "https://gist.githubusercontent.com/johnt337/2b89f62c5c530c112484ccc50f3510f8/raw/a29b4f337728ee009fe80c18d48f8514834e48ad/iam_auth",
+          "verification": {
+            "hash": "sha512-d8abd0f363d22e41f7875c72938afdcde6fcb384781247174d55a2b6a781c02d03d3bd80a5d4b013b9431945cb0b1a70861ecf9a9e0ae10ee982f6d51da3ca38"
+          }
+        },
+        "mode": 360,
+        "user": {},
+        "group": {
+          "id": 500
+        }
+      },
+      {
+        "filesystem": "root",
+        "path": "/etc/ec2_tag",
+        "contents": {
+          "source": "https://gist.githubusercontent.com/johnt337/1fc2aa3d253f4ac020ecba8cb332bb99/raw/1d5f26288df38f3d25c3be4851df1085a5152b2c/ec2_tag",
+          "verification": {
+            "hash": "sha512-66a727c0b948326d7503608c8e935352ad5c1b6f6c955c9949435f7093a4bf332b9cb731ecab57f7d33e154af30cb3f4ec86fe9c949ec3ba8adff9b20a08993a"
+          }
+        },
+        "mode": 448,
+        "user": {},
+        "group": {}
+      }
+    ]
+  },
+  "systemd": {
+    "units": [
+      {
+        "name": "pull-ec2-tag.service",
+        "enable": true,
+        "contents": "[Service]\nType=oneshot\nExecStart=/usr/bin/docker pull ${ec2_tag}\n\n[Install]\nWantedBy=multi-user.target\n"
+      },
+      {
+        "name": "ec2_tag.service",
+        "enable": true,
+        "contents": "[Unit]\nAfter=pull-ec2-tag.service\nRequires=pull-ec2-tag.service\n\n[Service]\nType=oneshot\nExecStart=/etc/ec2_tag\n\n[Install]\nWantedBy=multi-user.target\n"
+      },
+      {
+        "name": "var-lib-docker.mount",
+        "enable": true,
+        "contents": "[Mount]\nWhat=${var_volume_path}1\nWhere=/var/lib/docker\nType=ext4\n\n[Install]\nWantedBy=local-fs.target\n"
+      },
+      {
+        "name": "data.mount",
+        "enable": true,
+        "contents": "[Mount]\nWhat=${data_volume_path}1\nWhere=/data\nType=ext4\n\n[Install]\nWantedBy=local-fs.target\n"
+      }
+    ]
+  },
+  "networkd": {},
+  "passwd": {
+    "users": [
+      {
+        "name": "ec2-user",
+        "passwordHash": "${password}",
+        "sshAuthorizedKeys": [
+          "${ssh_public_key}"
+        ],
+        "create": {
+          "uid": 501,
+          "gecos": "EC2 User",
+          "homeDir": "/home/ec2-user",
+          "primaryGroup": "core",
+          "groups": [
+            "wheel",
+            "docker",
+            "demo"
+          ],
+          "shell": "/bin/bash"
+        }
+      }
+    ],
+    "groups": [
+      {
+        "name": "ec2-user",
+        "gid": 1000
+      }
+    ]
+  }
+}
