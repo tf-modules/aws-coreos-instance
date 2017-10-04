@@ -4,7 +4,7 @@ provider "aws" {
 
 terraform {
   backend "s3" {}
-  required_version = "~> 0.9.2"
+  required_version = "> 0.9.2"
 }
 
 # Template file for GETTING instance user data file
