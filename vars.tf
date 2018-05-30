@@ -3,7 +3,7 @@ variable "ami"                                {}
 variable "instance_type"                      { default = "t2.micro" }
 variable "iam_instance_profile"               {}
 variable "ebs_optimized"                      { default = true }
-variable "version"                            {}
+variable "version"                            { default = "1.0.0" }
 variable "aws_account_id"                     {}
 variable "key_name"                           {}
 variable "key_contents"                       {}
@@ -15,17 +15,11 @@ variable "subnet_id"                          {}
 variable "ec2_tag"                            {}
 variable "r53zone_id"                         {}
 variable "configuration_bucket"               {}
+variable "name"                               { default = "" }
 variable "override_user_data"                 {}
 
 variable "tags"                               {
   type = "map" 
-  default = {
-    environment           = "demo"
-    customer              = "demo"
-    role                  = "demo"
-    billing_code          = "demo"
-    app_name              = "demo"
-  }
 }
 
 variable "rootfs"                             {

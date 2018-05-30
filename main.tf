@@ -1,6 +1,6 @@
-#provider "aws" {
-#  region = "${var.region}"
-#}
+provider "aws" {
+  region = "${var.region}"
+}
 
 terraform {
   backend "s3" {}
@@ -8,13 +8,13 @@ terraform {
 }
 
 data "template_file" "user-data" {
-  template = "${file("./templates/userdata/ignition.json")}"
+  template = "${file("${path.module}/templates/userdata/ignition.json")}"
   vars {
-    region               = "%{var.region}"
+    region               = "${var.region}"
 
     var_volume_path      = "${var.varfs["path"]}"
     data_volume_path     = "${var.datafs["path"]}"
-    app_name             = "${var.tags["app_name"]}"
+    app_name             = "${var.tags["product_code"]}"
     role                 = "${var.tags["role"]}"
     environment          = "${var.tags["environment"]}"
     customer             = "${var.tags["customer"]}"
@@ -27,7 +27,7 @@ data "template_file" "user-data" {
     ssh_public_key       = "${var.key_contents}"
     password             = "${var.password}"
     dns_domain           = "${var.dns_domain}"
-    node_name            = "${format("%s-%s-%s", var.tags["app_name"], var.tags["environment"], var.tags["billing_code"])}"
+    node_name            = "${format("%s-%s", var.tags["environment"], var.tags["billing_code"])}"
     ec2_tag              = "${var.ec2_tag}"
   }
 }
@@ -71,13 +71,16 @@ resource "aws_instance" "coreos" {
 
     lifecycle {
       create_before_destroy     = false
+      ignore_changes = ["tags"]
     }
+
+    tags = "${var.tags}"
 }
 
 # resource record set resource
 resource "aws_route53_record" "coreos" {
   depends_on = ["aws_instance.coreos"]
-  name       = "${format("%s-%s-%s.%s", var.tags["app_name"], var.tags["environment"], var.tags["customer"], var.dns_domain)}"
+  name       = "${format("%s-%s",length(var.name) > 0 ? var.name : var.tags["environment"], var.tags["role"])}"
   zone_id    = "${var.r53zone_id}"
   type       = "A"
   ttl        = "30"

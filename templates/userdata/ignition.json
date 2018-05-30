@@ -153,8 +153,7 @@
           "primaryGroup": "core",
           "groups": [
             "wheel",
-            "docker",
-            "demo"
+            "docker"
           ],
           "shell": "/bin/bash"
         }
